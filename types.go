@@ -14,6 +14,7 @@ type PubSub struct {
 
 type Client struct {
 	Authorized bool            `json:"authorized"`
+	Closed     bool            `json:"-"`
 	Id         string          `json:"id"`
 	Topics     []string        `json:"topics"`
 	Connection *websocket.Conn `json:"-"`
