@@ -55,6 +55,13 @@ func (ps *PubSub) Subscribe(client *Client, topic string) Subscription {
 	if ps.Subscriptions == nil {
 		ps.Subscriptions = make(map[string][]*Client)
 	}
+	if ps.Subscriptions[topic] != nil {
+		for _, c := range ps.Subscriptions[topic] {
+			if c == client {
+				return Subscription{Topic: topic, Client: client}
+			}
+		}
+	}
 	ps.Subscriptions[topic] = append(ps.Subscriptions[topic], client)
 	subsMutex.Unlock()
 	client.Topics = append(client.Topics, topic)
