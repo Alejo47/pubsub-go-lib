@@ -7,9 +7,10 @@ import (
 )
 
 type PubSub struct {
-	Total         int                  `json:"total"`
-	Clients       []*Client            `json:"clients"`
-	Subscriptions map[string][]*Client `json:"subscriptions"`
+	TotalClients int                  `json:"totalClients"`
+	TotalTopics  int                  `json:"totalTopics"`
+	Clients      []*Client            `json:"clients"`
+	Topics       map[string][]*Client `json:"topics"`
 }
 
 type Client struct {
@@ -19,11 +20,6 @@ type Client struct {
 	Topics     []string        `json:"topics"`
 	Connection *websocket.Conn `json:"-"`
 	Mutex      sync.Mutex      `json:"-"`
-}
-
-type Subscription struct {
-	Topic  string  `json:"topic"`
-	Client *Client `json:"client"`
 }
 
 type PubSubMessage struct {

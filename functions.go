@@ -6,21 +6,22 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var subsMutex sync.RWMutex
+var topicsMutex sync.RWMutex
 var clientsMutex sync.RWMutex
 
 func New() PubSub {
 	newPS := PubSub{}
 
 	newPS.Clients = []*Client{}
-	newPS.Subscriptions = make(map[string][]*Client)
+	newPS.Topics = make(map[string][]*Client)
 
 	return newPS
 }
 
 func (ps *PubSub) AddClient(client *Client) *PubSub {
 	ps.Clients = append(ps.Clients, client)
-	ps.Total = len(ps.Clients)
+	ps.TotalClients = len(ps.Clients)
+	ps.TotalTopics = len(ps.Topics)
 	return ps
 }
 
@@ -30,9 +31,11 @@ func (ps *PubSub) RemoveClient(client *Client) *PubSub {
 	}
 
 	clientsMutex.Lock()
+	defer clientsMutex.Unlock()
 	if len(ps.Clients) <= 1 {
 		ps.Clients = []*Client{}
-		ps.Total = len(ps.Clients)
+		ps.TotalClients = len(ps.Clients)
+		ps.TotalTopics = len(ps.Topics)
 		return ps
 	}
 
@@ -43,62 +46,73 @@ func (ps *PubSub) RemoveClient(client *Client) *PubSub {
 			} else {
 				ps.Clients = append(ps.Clients[:i], ps.Clients[i+1:]...)
 			}
-			ps.Total = len(ps.Clients)
+			ps.TotalClients = len(ps.Clients)
+			ps.TotalTopics = len(ps.Topics)
 		}
 	}
-	clientsMutex.Unlock()
 	return ps
 }
 
-func (ps *PubSub) Subscribe(client *Client, topic string) Subscription {
-	subsMutex.Lock()
-	if ps.Subscriptions == nil {
-		ps.Subscriptions = make(map[string][]*Client)
+func (ps *PubSub) Subscribe(client *Client, topic string) *Client {
+	topicsMutex.Lock()
+	if ps.Topics == nil {
+		ps.Topics = make(map[string][]*Client)
 	}
-	if ps.Subscriptions[topic] != nil {
-		for _, c := range ps.Subscriptions[topic] {
-			if c == client {
-				return Subscription{Topic: topic, Client: client}
+	if ps.Topics[topic] != nil {
+		for _, c := range ps.Topics[topic] {
+			if c.Id == client.Id {
+				return c
 			}
 		}
 	}
-	ps.Subscriptions[topic] = append(ps.Subscriptions[topic], client)
-	subsMutex.Unlock()
+	ps.Topics[topic] = append(ps.Topics[topic], client)
 	client.Topics = append(client.Topics, topic)
 
-	return Subscription{Topic: topic, Client: client}
+	ps.TotalTopics = len(ps.Topics)
+	topicsMutex.Unlock()
+	return client
 }
 
-func (ps *PubSub) Unsubscribe(client *Client, topic string) Subscription {
-	clientsMutex.Lock()
-	for i, cTopic := range client.Topics {
-		if cTopic == topic {
-			client.Topics = append(client.Topics[:i], client.Topics[i+1:]...)
+func (ps *PubSub) Unsubscribe(client *Client, topic string) {
+
+	if len(client.Topics) == 1 {
+		if client.Topics[0] == topic {
+			client.Topics = []string{}
+		}
+	} else {
+		for i, cTopic := range client.Topics {
+			if cTopic == topic {
+				if i+1 == len(client.Topics) {
+					client.Topics = client.Topics[0 : i-1]
+				} else {
+					client.Topics = append(client.Topics[:i], client.Topics[i+1:]...)
+				}
+			}
 		}
 	}
-	clientsMutex.Unlock()
 
-	subsMutex.Lock()
-	if ps.Subscriptions == nil {
-		ps.Subscriptions = make(map[string][]*Client)
+	topicsMutex.Lock()
+	defer topicsMutex.Unlock()
+	if ps.Topics == nil {
+		ps.Topics = make(map[string][]*Client)
 	}
 
-	for i, subClient := range ps.Subscriptions[topic] {
+	for i, subClient := range ps.Topics[topic] {
 		if client == subClient {
-			ps.Subscriptions[topic] = append(ps.Subscriptions[topic][:i], ps.Subscriptions[topic][i+1:]...)
+			ps.Topics[topic] = append(ps.Topics[topic][:i], ps.Topics[topic][i+1:]...)
 		}
 	}
 
-	if len(ps.Subscriptions[topic]) == 0 {
-		delete(ps.Subscriptions, topic)
+	if len(ps.Topics[topic]) == 0 {
+		delete(ps.Topics, topic)
 	}
-	subsMutex.Unlock()
 
-	return Subscription{}
+	ps.TotalTopics = len(ps.Topics)
+	return
 }
 
 func (client *Client) SendMessage(msg []byte) {
 	client.Mutex.Lock()
+	defer client.Mutex.Unlock()
 	client.Connection.WriteMessage(websocket.TextMessage, msg)
-	client.Mutex.Unlock()
 }
