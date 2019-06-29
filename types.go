@@ -23,8 +23,8 @@ type Client struct {
 }
 
 type PubSubMessage struct {
-	Command string            `json:"command,omitonempty"`
-	Room    string            `json:"room,omitonempty"`
-	Message string            `json:"data,omitonempty"`
-	Params  map[string]string `json:"params,omitonempty"`
+	Command string                 `json:"command,omitonempty"`
+	Room    string                 `json:"room,omitonempty"`
+	Message string                 `json:"data,omitonempty"`
+	Params  map[string]interface{} `json:"params,omitonempty"`
 }
