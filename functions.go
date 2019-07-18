@@ -55,6 +55,7 @@ func (ps *PubSub) RemoveClient(client *Client) *PubSub {
 
 func (ps *PubSub) Subscribe(client *Client, topic string) *Client {
 	topicsMutex.Lock()
+	defer topicsMutex.Unlock()
 	if ps.Topics == nil {
 		ps.Topics = make(map[string][]*Client)
 	}
@@ -69,7 +70,6 @@ func (ps *PubSub) Subscribe(client *Client, topic string) *Client {
 	client.Topics = append(client.Topics, topic)
 
 	ps.TotalTopics = len(ps.Topics)
-	topicsMutex.Unlock()
 	return client
 }
 
