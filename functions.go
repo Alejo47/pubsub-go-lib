@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -109,6 +110,25 @@ func (ps *PubSub) Unsubscribe(client *Client, topic string) {
 
 	ps.TotalTopics = len(ps.Topics)
 	return
+}
+
+func (ps *PubSub) PublishBytes(topic string, msg []byte) {
+	for _, c := range ps.Topics[topic] {
+		c.SendMessage(msg)
+	}
+}
+
+func (ps *PubSub) PublishJSON(topic string, msg any) {
+	bArr, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	ps.PublishBytes(topic, bArr)
+}
+
+func (ps *PubSub) PublishString(topic string, msg string) {
+	ps.PublishBytes(topic, []byte(msg))
 }
 
 func (client *Client) SendMessage(msg []byte) {
